@@ -1,4 +1,5 @@
 import logging
+import os
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
@@ -15,8 +16,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text('Привіт! Я твій новий бот.')
 
 def main() -> None:
-    # Введіть свій токен, який ви отримали від BotFather
-    token = 'YOUR_TELEGRAM_BOT_TOKEN'
+    # Отримуємо токен з змінних середовища
+    token = os.getenv('TELEGRAM_BOT_TOKEN')
 
     # Створюємо ApplicationBuilder та передаємо йому токен вашого бота
     application = ApplicationBuilder().token(token).build()
