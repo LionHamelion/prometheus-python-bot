@@ -1,6 +1,8 @@
 import logging
 import os
 import socket
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
@@ -47,7 +49,22 @@ async def check_router_status(context: ContextTypes.DEFAULT_TYPE) -> None:
         # Оновлюємо попередній стан
         previous_status = current_status
 
+# Простий HTTP сервер для підтримки відкритого порту
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'Hello, world')
+
+def run_http_server():
+    port = int(os.getenv('PORT', 8000))
+    httpd = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
+    httpd.serve_forever()
+
 def main() -> None:
+    # Запускаємо HTTP сервер у окремому потоці
+    threading.Thread(target=run_http_server, daemon=True).start()
+
     # Отримуємо токен з змінних середовища
     token = os.getenv('TELEGRAM_BOT_TOKEN')
 
