@@ -6,7 +6,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # Установлюємо логування
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelень)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
@@ -50,6 +50,7 @@ def main() -> None:
     # Створюємо ApplicationBuilder та передаємо йому токен вашого бота
     application = ApplicationBuilder().token(token).build()
 
+    # Встановлюємо JobQueue
     job_queue = application.job_queue
     job_queue.run_repeating(check_router_status, interval=60, first=10)
 
