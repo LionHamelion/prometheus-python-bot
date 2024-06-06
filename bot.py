@@ -1,6 +1,6 @@
 import logging
 import os
-import subprocess
+import socket
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
@@ -18,9 +18,13 @@ previous_status = None
 # Функція для перевірки доступності IP-адреси
 def is_router_reachable(ip_address):
     try:
-        subprocess.check_output(["ping", "-c", "2", ip_address])
+        # Створюємо сокет
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(1)
+        s.connect((ip_address, 80))
+        s.close()
         return True
-    except subprocess.CalledProcessError:
+    except Exception:
         return False
 
 # Функція для відправки повідомлень у Telegram канал
