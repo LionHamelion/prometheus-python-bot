@@ -1,19 +1,47 @@
 import logging
 import os
+import subprocess
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 # Установлюємо логування
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelень)s - %(message)s',
     level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
 
-# Функція, яка відповідає на команду /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text('Привіт! Я твій новий бот.')
+# Змінна для збереження попереднього стану
+previous_status = None
+
+# Функція для перевірки доступності IP-адреси
+def is_router_reachable(ip_address):
+    try:
+        subprocess.check_output(["ping", "-c", "2", ip_address])
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+# Функція для відправки повідомлень у Telegram канал
+async def send_message(context, message):
+    channel_id = os.getenv('TELEGRAM_CHANNEL_ID')
+    await context.bot.send_message(chat_id=channel_id, text=message)
+
+# Функція для перевірки стану роутера та відправки повідомлень
+async def check_router_status(context: ContextTypes.DEFAULT_TYPE) -> None:
+    global previous_status
+    ip_address = os.getenv('ROUTER_IP')
+    current_status = is_router_reachable(ip_address)
+
+    if current_status != previous_status:
+        if current_status:
+            await send_message(context, "Є світло")
+        else:
+            await send_message(context, "Нема світла")
+        
+        # Оновлюємо попередній стан
+        previous_status = current_status
 
 def main() -> None:
     # Отримуємо токен з змінних середовища
@@ -22,8 +50,8 @@ def main() -> None:
     # Створюємо ApplicationBuilder та передаємо йому токен вашого бота
     application = ApplicationBuilder().token(token).build()
 
-    # Реєструємо обробник для команди /start
-    application.add_handler(CommandHandler("start", start))
+    job_queue = application.job_queue
+    job_queue.run_repeating(check_router_status, interval=60, first=10)
 
     # Запускаємо бота
     application.run_polling()
