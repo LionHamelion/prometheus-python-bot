@@ -10,7 +10,7 @@ from ping_server import start_ping_server
 
 # Установлюємо логування
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelень) - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
