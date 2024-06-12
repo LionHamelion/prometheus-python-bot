@@ -6,10 +6,11 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from ping_server import start_ping_server
+import time
 
 # Установлюємо логування
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levellevel)s - %(message)s',
     level=logging.INFO
 )
 
@@ -17,6 +18,12 @@ logger = logging.getLogger(__name__)
 
 # Змінна для збереження попереднього стану
 previous_status = None
+
+# Лічильник невдалих запитів
+failed_attempts = 0
+
+# Час останньої зміни на "Є світло"
+last_light_on_time = None
 
 # Функція для перевірки доступності порту за IP-адресою
 def is_port_open(ip_address, port):
@@ -37,19 +44,33 @@ async def send_message(context, message):
 
 # Функція для перевірки стану порту та відправки повідомлень
 async def check_port_status(context: ContextTypes.DEFAULT_TYPE) -> None:
-    global previous_status
+    global previous_status, failed_attempts, last_light_on_time
     ip_address = os.getenv('ROUTER_IP')
     port = int(os.getenv('ROUTER_PORT', 80))
     current_status = is_port_open(ip_address, port)
 
-    if current_status != previous_status:
-        if current_status:
-            await send_message(context, "⚡Є світло")
+    # Якщо поточний статус змінився на "Є світло"
+    if current_status and previous_status != current_status:
+        last_light_on_time = time.time()
+
+    # Якщо поточний статус "Нема світла"
+    if not current_status:
+        if last_light_on_time and (time.time() - last_light_on_time < 15 * 60):
+            # Період виключної перевірки
+            failed_attempts += 1
+            if failed_attempts >= 3:
+                await send_message(context, "🕯Нема світла")
+                previous_status = current_status
+                failed_attempts = 0
         else:
+            # Звичайний режим опитування
             await send_message(context, "🕯Нема світла")
-        
-        # Оновлюємо попередній стан
-        previous_status = current_status
+            previous_status = current_status
+    else:
+        if previous_status != current_status:
+            await send_message(context, "⚡Є світло")
+            previous_status = current_status
+        failed_attempts = 0
 
 # Простий HTTP сервер для підтримки відкритого порту
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
