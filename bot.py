@@ -2,20 +2,24 @@ import logging
 import os
 import socket
 import threading
+import time
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from ping_server import start_ping_server
 
 # Установлюємо логування
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelень) - %(message)s',
     level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
 
-# Змінна для збереження попереднього стану
+# Змінні для збереження попереднього стану та кількості невдалих спроб
 previous_status = None
+consecutive_failures = 0
+light_on_timestamp = None
 
 # Функція для перевірки доступності порту за IP-адресою
 def is_port_open(ip_address, port):
@@ -36,19 +40,35 @@ async def send_message(context, message):
 
 # Функція для перевірки стану порту та відправки повідомлень
 async def check_port_status(context: ContextTypes.DEFAULT_TYPE) -> None:
-    global previous_status
+    global previous_status, consecutive_failures, light_on_timestamp
     ip_address = os.getenv('ROUTER_IP')
     port = int(os.getenv('ROUTER_PORT', 80))
     current_status = is_port_open(ip_address, port)
 
-    if current_status != previous_status:
-        if current_status:
+    # Якщо сервер доступний
+    if current_status:
+        if previous_status != current_status:
             await send_message(context, "Є світло")
+            light_on_timestamp = time.time()
+        consecutive_failures = 0
+    else:
+        if previous_status:
+            if light_on_timestamp and (time.time() - light_on_timestamp < 15 * 60):
+                # Режим підвищеної перевірки (15 хвилин після увімкнення світла)
+                consecutive_failures += 1
+                if consecutive_failures >= 3:
+                    await send_message(context, "Нема світла")
+                    previous_status = False
+                    consecutive_failures = 0
+            else:
+                # Звичайний режим перевірки
+                await send_message(context, "Нема світла")
+                previous_status = False
         else:
-            await send_message(context, "Нема світла")
-        
-        # Оновлюємо попередній стан
-        previous_status = current_status
+            consecutive_failures = 0
+
+    # Оновлюємо попередній стан
+    previous_status = current_status
 
 # Простий HTTP сервер для підтримки відкритого порту
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -65,6 +85,9 @@ def run_http_server():
 def main() -> None:
     # Запускаємо HTTP сервер у окремому потоці
     threading.Thread(target=run_http_server, daemon=True).start()
+
+    # Запускаємо пінгування сервера у окремому потоці
+    start_ping_server()
 
     # Отримуємо токен з змінних середовища
     token = os.getenv('TELEGRAM_BOT_TOKEN')
