@@ -48,7 +48,7 @@ async def check_port_status(context: ContextTypes.DEFAULT_TYPE) -> None:
     # Якщо сервер доступний
     if current_status:
         if previous_status != current_status:
-            await send_message(context, "Є світло")
+            await send_message(context, "⚡Є світло")
             light_on_timestamp = time.time()
         consecutive_failures = 0
     else:
@@ -57,7 +57,7 @@ async def check_port_status(context: ContextTypes.DEFAULT_TYPE) -> None:
                 # Режим підвищеної перевірки (15 хвилин після увімкнення світла)
                 consecutive_failures += 1
                 if consecutive_failures >= 3:
-                    await send_message(context, "Нема світла")
+                    await send_message(context, "🕯Нема світла")
                     previous_status = False
                     consecutive_failures = 0
             else:
