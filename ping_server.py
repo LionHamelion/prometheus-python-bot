@@ -1,6 +1,7 @@
 import requests
 import time
 import threading
+import os
 
 # Функція для періодичного запиту до сервера
 def ping_server():
