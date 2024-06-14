@@ -27,15 +27,17 @@ last_light_on_time = None
 
 # Функція для перевірки доступності порту за IP-адресою
 def is_port_open(ip_address, port):
-    try:
-        # Створюємо сокет
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(1)
-        s.connect((ip_address, port))
-        s.close()
-        return True
-    except Exception:
-        return False
+    for _ in range(3):  # Пробуємо 3 рази
+        try:
+            # Створюємо сокет
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(1)
+            s.connect((ip_address, port))
+            s.close()
+            return True
+        except Exception:
+            time.sleep(0.5)
+    return False
 
 # Функція для відправки повідомлень у Telegram канал
 async def send_message(context, message):
@@ -52,25 +54,15 @@ async def check_port_status(context: ContextTypes.DEFAULT_TYPE) -> None:
     # Якщо поточний статус змінився на "Є світло"
     if current_status and previous_status != current_status:
         last_light_on_time = time.time()
+        await send_message(context, "⚡Є світло")
+        previous_status = current_status
+        failed_attempts = 0
 
     # Якщо поточний статус "Нема світла"
-    if not current_status:
-        if last_light_on_time and (time.time() - last_light_on_time < 15 * 60):
-            # Період виключної перевірки
-            failed_attempts += 1
-            if failed_attempts >= 3:
-                await send_message(context, "🕯Нема світла")
-                previous_status = current_status
-                failed_attempts = 0
-        else:
-            # Звичайний режим опитування
+    elif not current_status:
+        if previous_status != current_status:
             await send_message(context, "🕯Нема світла")
             previous_status = current_status
-    else:
-        if previous_status != current_status:
-            await send_message(context, "⚡Є світло")
-            previous_status = current_status
-        failed_attempts = 0
 
 # Простий HTTP сервер для підтримки відкритого порту
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
