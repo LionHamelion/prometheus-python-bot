@@ -23,7 +23,15 @@ previous_status = None
 failed_attempts = 0
 
 # Час останньої зміни на "Є світло"
-last_light_on_time = None
+last_light_on_time = 0
+
+# Функція визначає, чи пройшов проміжок часу (у секундах) з останнього увімкнення світла
+def hasTimePassed(seconds):
+    global last_light_on_time
+    if time.time() - last_light_on_time >= seconds:
+        return True
+    else:
+        return False
 
 # Функція для перевірки доступності порту за IP-адресою
 def is_port_open(ip_address, port):
@@ -36,7 +44,7 @@ def is_port_open(ip_address, port):
             s.close()
             return True
         except Exception:
-            time.sleep(0.5)
+            time.sleep(3)
     return False
 
 # Функція для відправки повідомлень у Telegram канал
@@ -59,10 +67,13 @@ async def check_port_status(context: ContextTypes.DEFAULT_TYPE) -> None:
         failed_attempts = 0
 
     # Якщо поточний статус "Нема світла"
-    elif not current_status:
-        if previous_status != current_status:
-            await send_message(context, "🕯Нема світла")
+    elif not current_status and previous_status != current_status:
+        if hasTimePassed(900) or failed_attempts >= 3:
+            await send_message(context, "🌚 Нема світла")
             previous_status = current_status
+            failed_attempts = 0
+        else:
+            failed_attempts += 1
 
 # Простий HTTP сервер для підтримки відкритого порту
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
