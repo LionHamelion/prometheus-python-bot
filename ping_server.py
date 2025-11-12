@@ -15,7 +15,7 @@ def ping_server():
                 print(f'Failed to ping server with status code: {response.status_code}')
         except Exception as e:
             print(f'Error pinging server: {e}')
-        time.sleep(14 * 60)  # Чекати 14 хвилин перед наступним запитом
+        time.sleep(5 * 60)  # Чекати 5 хвилин перед наступним запитом
 
 # Запуск пінгування сервера у окремому потоці
 def start_ping_server():
