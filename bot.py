@@ -92,7 +92,7 @@ def main() -> None:
     threading.Thread(target=run_http_server, daemon=True).start()
 
     # Запускаємо пінгування сервера у окремому потоці
-    start_ping_server()
+    #start_ping_server()
 
     # Отримуємо токен з змінних середовища
     token = os.getenv('TELEGRAM_BOT_TOKEN')
