@@ -1,16 +1,19 @@
+import asyncio
 import logging
 import os
 import socket
 import time
-from telegram.ext import ApplicationBuilder, ContextTypes
+from telegram import Bot
 
-# Налаштування логування виключно в stdout/stderr
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 
 logger = logging.getLogger(__name__)
+
+# Приглушуємо системні HTTP-логи від httpx
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 previous_status = None
 failed_attempts = 0
@@ -36,11 +39,11 @@ def is_port_open(ip_address, port, retries=5, delay=3, timeout=2):
                 s.close()
     return False
 
-async def send_message(context: ContextTypes.DEFAULT_TYPE, message: str):
+async def send_message(bot: Bot, message: str):
     channel_id = os.getenv('TELEGRAM_CHANNEL_ID')
-    await context.bot.send_message(chat_id=channel_id, text=message)
+    await bot.send_message(chat_id=channel_id, text=message)
 
-async def check_port_status(context: ContextTypes.DEFAULT_TYPE) -> None:
+async def check_port_status(bot: Bot) -> None:
     global previous_status, failed_attempts, last_light_on_time
     ip_address = os.getenv('ROUTER_IP')
     port = int(os.getenv('ROUTER_PORT', 80))
@@ -48,26 +51,32 @@ async def check_port_status(context: ContextTypes.DEFAULT_TYPE) -> None:
 
     if current_status and previous_status != current_status:
         last_light_on_time = time.time()
-        await send_message(context, "⚡Є світло")
+        await send_message(bot, "⚡Є світло")
         previous_status = current_status
         failed_attempts = 0
 
     elif not current_status and previous_status != current_status:
         if hasTimePassed(900) or failed_attempts >= 3:
-            await send_message(context, "🌚 Нема світла")
+            await send_message(bot, "🌚 Нема світла")
             previous_status = current_status
             failed_attempts = 0
         else:
             failed_attempts += 1
 
-def main() -> None:
+async def main() -> None:
     token = os.getenv('TELEGRAM_BOT_TOKEN')
-    application = ApplicationBuilder().token(token).build()
+    bot = Bot(token=token)
 
-    job_queue = application.job_queue
-    job_queue.run_repeating(check_port_status, interval=60, first=10)
+    logger.info("Бот запущено у режимі моніторингу (без polling).")
 
-    application.run_polling()
+    while True:
+        try:
+            await check_port_status(bot)
+        except Exception as e:
+            logger.error(f"Помилка при виконанні перевірки: {e}")
+        
+        # Чекаємо 60 секунд до наступної перевірки
+        await asyncio.sleep(60)
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
